@@ -1,0 +1,25 @@
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://job-portal-backend-api-3li9.onrender.com/api/vi";
+// http://localhost:5000/
+// https://job-portal-backend-api-3li9.onrender.com/
+
+const api = async (endpoint, options = {}) => {
+    const response = await fetch(`${API_URL}${endpoint}`, {
+        ...options,
+        headers: {
+            "Content-Type": "application/json",
+            ...(options.headers || {}),
+        },
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(
+            data?.message || "Something went wrong"
+        );
+    }
+
+    return data;
+};
+
+export default api;
