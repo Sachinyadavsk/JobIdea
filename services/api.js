@@ -1,5 +1,5 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://job-portal-backend-api-3li9.onrender.com/api/vi";
-// http://localhost:5000/
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/vi";
+// http://localhost:8000/
 // https://job-portal-backend-api-3li9.onrender.com/
 
 const api = async (endpoint, options = {}) => {

@@ -8,13 +8,14 @@ import {
   CheckCircle2,
   MapPin,
 } from "lucide-react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import axios from "axios";
 import { useEffect, useState } from "react";
 import SaveJobButton from "../../../components/SaveJobButton";
 
 export default function JobDetailsPage() {
   const { id } = useParams();
+  const router = useRouter();
 
   const [jobDetails, setJobDetails] = useState({
     responsibilities: [],
@@ -24,8 +25,9 @@ export default function JobDetailsPage() {
 
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
+  const [applied, setApplied] = useState(false);
+  const [checkingStatus, setCheckingStatus] = useState(true);
 
-  console.log("job details id", id);
 
   // Get job by ID
   const getJobByIdDetails = async (jobByid) => {
@@ -33,13 +35,8 @@ export default function JobDetailsPage() {
 
     try {
       setLoading(true);
-
-      const res = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/job/getDetailsByid/${jobByid}`
-      );
-
+      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/job/getDetailsByid/${jobByid}`);
       const data = res.data;
-
       if (data.success === true) {
         setJobDetails({
           ...data.job,
@@ -55,11 +52,7 @@ export default function JobDetailsPage() {
         });
       }
     } catch (error) {
-      console.error(
-        "Get Job Details Error:",
-        error.response?.data || error.message
-      );
-
+      console.error("Get Job Details Error:", error.response?.data || error.message);
       setJobDetails({
         responsibilities: [],
         requirements: [],
@@ -74,14 +67,13 @@ export default function JobDetailsPage() {
   const checkSavedJob = async (jobId) => {
     try {
       const token = localStorage.getItem("token");
-
+      // User is not logged in
       if (!token || !jobId) {
         setSaved(false);
         return;
       }
 
-      const res = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/saved-jobs/check/${jobId}`,
+      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/saved-jobs/check/${jobId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -90,24 +82,93 @@ export default function JobDetailsPage() {
       );
 
       if (res.data.success) {
-        setSaved(res.data.isSaved);
+        setSaved(Boolean(res.data.isSaved));
+      } else {
+        setSaved(false);
       }
     } catch (error) {
-      console.error(
-        "Check Saved Job Error:",
-        error.response?.data || error.message
-      );
-
+      console.error("Check Saved Job Error:", error.response?.data || error.message);
       setSaved(false);
     }
   };
 
-  useEffect(() => {
-    if (id) {
-      getJobByIdDetails(id);
-      checkSavedJob(id);
+  // Check whether this job is already applied
+  const checkAppliedJob = async (jobId) => {
+    try {
+      const token = localStorage.getItem("token");
+      // User is not logged in
+      if (!token || !jobId) {
+        setApplied(false);
+        return;
+      }
+
+      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/application/apply/check/${jobId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      console.log("Check Applied Job Response:", res.data);
+      const message = res.data?.message?.toLowerCase() || "";
+
+      // Already applied
+      if (res.data?.success === false && message.includes("already applied")) {
+        setApplied(true);
+      } else {
+        setApplied(false);
+      }
+    } catch (error) {
+      const data = error.response?.data;
+      const message = data?.message?.toLowerCase() || "";
+      // Backend may return 400/409 for already applied
+      if (message.includes("already applied")) {
+        setApplied(true);
+      } else {
+        setApplied(false);
+      }
     }
+  };
+
+  // Check login + saved + applied status
+  useEffect(() => {
+    if (!id) return;
+    getJobByIdDetails(id);
+
+    const checkUserStatus = async () => {
+      setCheckingStatus(true);
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setSaved(false);
+        setApplied(false);
+        setCheckingStatus(false);
+        return;
+      }
+      await Promise.all([
+        checkSavedJob(id),
+        checkAppliedJob(id),
+      ]);
+      setCheckingStatus(false);
+    };
+    checkUserStatus();
   }, [id]);
+
+  // Apply button condition
+  const handleApplyNow = () => {
+    const token = localStorage.getItem("token");
+    // Not logged in
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+    // Already applied
+    if (applied) {
+      return;
+    }
+    // Logged in -> apply page
+    router.push(`/jobs/${jobDetails._id}/apply`);
+  };
 
   if (loading) {
     return (
@@ -122,9 +183,7 @@ export default function JobDetailsPage() {
       <div className="flex min-h-[500px] items-center justify-center bg-gray-50">
         <div className="text-center">
           <h2 className="text-xl font-bold text-gray-700">Job not found</h2>
-          <Link href="/jobs" className="mt-4 inline-block text-blue-600 hover:text-blue-700">
-            Back to Jobs
-          </Link>
+          <Link href="/jobs" className="mt-4 inline-block text-blue-600 hover:text-blue-700">Back to Jobs</Link>
         </div>
       </div>
     );
@@ -135,12 +194,8 @@ export default function JobDetailsPage() {
       {/* Header */}
       <section className="bg-blue-600 py-12">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <Link
-            href="/jobs"
-            className="mb-8 flex w-fit items-center gap-2 text-sm text-blue-100 hover:text-white"
-          >
-            <ArrowLeft size={17} />
-            Back to Jobs
+          <Link href="/jobs" className="mb-8 flex w-fit items-center gap-2 text-sm text-blue-100 hover:text-white">
+            <ArrowLeft size={17} />Back to Jobs
           </Link>
 
           <div className="flex flex-col gap-6 md:flex-row md:items-center">
@@ -149,11 +204,15 @@ export default function JobDetailsPage() {
             </div>
 
             <div>
-              <h1 className="text-3xl font-bold text-white">{jobDetails.title} </h1>
+              <h1 className="text-3xl font-bold text-white">{jobDetails.title}</h1>
               <p className="mt-2 text-blue-100">{jobDetails.company?.name || "Company"}</p>
               <div className="mt-4 flex flex-wrap gap-5 text-sm text-blue-100">
-                <span className="flex items-center gap-2"><MapPin size={16} />{jobDetails.location || "Location not specified"}</span>
-                <span className="flex items-center gap-2"><Briefcase size={16} />{jobDetails.jobType || "Full Time"}</span>
+                <span className="flex items-center gap-2">
+                  <MapPin size={16} />{jobDetails.location || "Location not specified"}
+                </span>
+                <span className="flex items-center gap-2">
+                  <Briefcase size={16} />{jobDetails.jobType || "Full Time"}
+                </span>
                 <span>₹{jobDetails.salary || 0} LPA</span>
               </div>
             </div>
@@ -169,7 +228,9 @@ export default function JobDetailsPage() {
             {/* Description */}
             <div className="rounded-xl border border-gray-200 bg-white p-6 sm:p-8">
               <h2 className="text-xl font-bold">Job Description</h2>
-              <p className="mt-4 leading-7 text-gray-600">{jobDetails.description || "No description available."}</p>
+              <p className="mt-4 leading-7 text-gray-600">
+                {jobDetails.description || "No description available."}
+              </p>
             </div>
 
             {/* Responsibilities */}
@@ -182,7 +243,8 @@ export default function JobDetailsPage() {
                       <CheckCircle2 size={18} className="mt-1 shrink-0 text-blue-600" />
                       <span>{item}</span>
                     </div>
-                  ))}
+                  )
+                  )}
                 </div>
               ) : (
                 <p className="mt-4 text-sm text-gray-500">No responsibilities specified.</p>
@@ -199,7 +261,8 @@ export default function JobDetailsPage() {
                       <CheckCircle2 size={18} className="mt-1 shrink-0 text-blue-600" />
                       <span>{item}</span>
                     </div>
-                  ))}
+                  )
+                  )}
                 </div>
               ) : (
                 <p className="mt-4 text-sm text-gray-500">No requirements specified.</p>
@@ -215,7 +278,8 @@ export default function JobDetailsPage() {
                     <span key={`${skill}-${index}`} className="rounded-lg bg-blue-50 px-4 py-2 text-sm font-medium text-blue-600">
                       {skill}
                     </span>
-                  ))}
+                  )
+                  )}
                 </div>
               ) : (
                 <p className="mt-4 text-sm text-gray-500">No skills specified.</p>
@@ -227,12 +291,17 @@ export default function JobDetailsPage() {
           <aside>
             <div className="sticky top-24 rounded-xl border border-gray-200 bg-white p-6">
               {/* Apply */}
-              <Link
-                href={`/jobs/${jobDetails._id}/apply`}
-                className="block w-full rounded-lg bg-blue-600 py-3 text-center font-semibold text-white hover:bg-blue-700"
-              >
-                Apply Now
-              </Link>
+              {applied ? (
+                <button type="button" disabled className="block w-full cursor-not-allowed rounded-lg bg-green-100 py-3 text-center font-semibold text-green-700">
+                  ✓ Already Applied
+                </button>
+              ) : (
+                <button type="button" onClick={handleApplyNow} disabled={checkingStatus}
+                  className="block w-full rounded-lg bg-blue-600 py-3 text-center font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {checkingStatus ? "Checking..." : "Apply Now"}
+                </button>
+              )}
 
               {/* Save Job */}
               <div className="mt-3 flex w-full items-center justify-center rounded-lg border border-gray-300 py-3">
@@ -275,7 +344,7 @@ export default function JobDetailsPage() {
                     <Briefcase className="text-blue-600" size={19} />
                     <div>
                       <p className="text-xs text-gray-500">Salary</p>
-                      <p className="mt-1 text-sm font-medium">₹{jobDetails.salary || 0} LPA</p>
+                      <p className="mt-1 text-sm font-medium"> ₹{jobDetails.salary || 0} LPA</p>
                     </div>
                   </div>
 
@@ -284,10 +353,9 @@ export default function JobDetailsPage() {
                     <Briefcase className="text-blue-600" size={19} />
                     <div>
                       <p className="text-xs text-gray-500"> Experience</p>
-                      <p className="mt-1 text-sm font-medium">{jobDetails.experienceLevel || 0} years </p>
+                      <p className="mt-1 text-sm font-medium">{jobDetails.experienceLevel || 0} years</p>
                     </div>
                   </div>
-
                 </div>
               </div>
             </div>

@@ -6,62 +6,76 @@ import {
     Users,
 } from "lucide-react";
 
+
+const menu = [
+    {
+        href: "/employer/dashboard",
+        label: "Dashboard",
+        icon: LayoutDashboard,
+    },
+    {
+        href: "/employer/post-job",
+        label: "Post Job",
+        icon: PlusCircle,
+    },
+    {
+        href: "/employer/jobs",
+        label: "Manage Jobs",
+        icon: Briefcase,
+    },
+    {
+        href: "/employer/applicants",
+        label: "Applicants",
+        icon: Users,
+    },
+];
+
 export default function EmployerLayout({ children }) {
     return (
         <div className="min-h-screen bg-gray-50">
+            <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:gap-6 lg:px-8 lg:py-8">
 
-            <div className="mx-auto flex max-w-7xl gap-6 px-4 py-8 sm:px-6 lg:px-8">
-
+                {/* Desktop Sidebar */}
                 <aside className="hidden w-64 shrink-0 rounded-xl border border-gray-200 bg-white p-5 lg:block">
-
                     <h2 className="mb-6 text-lg font-bold">
                         Employer Panel
                     </h2>
 
                     <nav className="space-y-2">
-
-                        <Link
-                            href="/employer/dashboard"
-                            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-600"
-                        >
-                            <LayoutDashboard size={18} />
-                            Dashboard
-                        </Link>
-
-                        <Link
-                            href="/employer/post-job"
-                            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-600"
-                        >
-                            <PlusCircle size={18} />
-                            Post Job
-                        </Link>
-
-                        <Link
-                            href="/employer/jobs"
-                            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-600"
-                        >
-                            <Briefcase size={18} />
-                            Manage Jobs
-                        </Link>
-
-                        <Link
-                            href="/employer/applicants"
-                            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-600"
-                        >
-                            <Users size={18} />
-                            Applicants
-                        </Link>
-
+                        {menu.map(({ href, label, icon: Icon }) => (
+                            <Link
+                                key={href}
+                                href={href}
+                                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-600"
+                            >
+                                <Icon size={18} />
+                                {label}
+                            </Link>
+                        ))}
                     </nav>
-
                 </aside>
 
+                {/* Mobile Menu */}
+                <div className="w-full overflow-x-auto rounded-xl border border-gray-200 bg-white p-2 lg:hidden">
+                    <nav className="flex min-w-max gap-2">
+                        {menu.map(({ href, label, icon: Icon }) => (
+                            <Link
+                                key={href}
+                                href={href}
+                                className="flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-600"
+                            >
+                                <Icon size={17} />
+                                {label}
+                            </Link>
+                        ))}
+                    </nav>
+                </div>
+
+                {/* Content */}
                 <main className="min-w-0 flex-1">
                     {children}
                 </main>
-
             </div>
-
         </div>
     );
 }
